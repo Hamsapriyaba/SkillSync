@@ -38,15 +38,14 @@ export const useFirebase = () => {
     if (!firebase) {
         throw new Error("useFirebase must be used within a FirebaseProvider");
     }
-    return firebase;
 }
 
 export const FirebaseProvider = (props) => {
     const [user, setUser] = useState(null);
     const [isLoggedIn, setIsLoggedIn] = useState(() => {
-        // Retrieve the value from local storage on initial load
         return JSON.parse(localStorage.getItem('isLoggedIn')) || false;
     });
+    const [error, setError] = useState('');
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(firebaseAuth, user => {
@@ -61,11 +60,9 @@ export const FirebaseProvider = (props) => {
             }
         });
 
-        // Cleanup subscription on component unmount
         return () => unsubscribe();
     }, []);
 
-    // Function to add a user to Firestore
     const addUser = async (CoalName, email, password) => {
         try {
             const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
@@ -80,76 +77,53 @@ export const FirebaseProvider = (props) => {
             const userDocRef = doc(firestore, 'users', loggedInUser.uid);
             await setDoc(userDocRef, userDoc);
             console.log('User document created with UID: ', loggedInUser.uid);
-
-            onAuthStateChanged(firebaseAuth, (user) => {
-                if (user) {
-                    console.log('User is logged in:', user);
-                } else {
-                    console.log('No user is logged in');
-                }
-            });
-
         } catch (error) {
+            setError(error.message);
             console.error('Error creating user or setting authentication:', error);
         }
     };
 
-    // Function to sign in with email and password
     const signinUserWithEmailAndPassword = async (email, password) => {
         try {
             const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
             return userCredential;
         } catch (error) {
-            let errorMessage = 'An error occurred during sign-in.';
-            switch (error.code) {
-                case 'auth/invalid-email':
-                    errorMessage = 'Invalid email address.';
-                    break;
-                case 'auth/user-not-found':
-                    errorMessage = 'No account found with this email.';
-                    break;
-                case 'auth/wrong-password':
-                    errorMessage = 'Incorrect password. Please try again.';
-                    break;
-                default:
-                    errorMessage = 'Failed to sign in. Please check your credentials and try again.';
-                    break;
-            }
-            throw new Error(errorMessage);
+            setError(error.message);
+            throw new Error('Failed to sign in. Please check your credentials and try again.');
         }
     };
 
-    // Function to sign in with Google
-    const signinWithGoogle = () => {
-        signInWithPopup(firebaseAuth, googleProvider);
+    const signinWithGoogle = async () => {
+        try {
+            await signInWithPopup(firebaseAuth, googleProvider);
+        } catch (error) {
+            setError(error.message);
+        }
     };
 
-    // Function to send password reset email
-    const sendPReset = (email) => {
-        sendPasswordResetEmail(firebaseAuth, email);
+    const sendPReset = async (email) => {
+        try {
+            await sendPasswordResetEmail(firebaseAuth, email);
+        } catch (error) {
+            setError(error.message);
+        }
     };
 
-    // Function to log out the user
     const handleLogout = async () => {
         try {
             await signOut(firebaseAuth);
             localStorage.removeItem('isLoggedIn');
         } catch (error) {
-            console.error('Error occurred during logout:', error);
+            setError(error.message);
         }
     };
 
-    // Function to upload PDF to Firebase Storage and save metadata to Firestore
     const uploadPDFToFirebase = async (pdfBlob) => {
         try {
-            // Step 1: Upload PDF to Firebase Storage
             const storageRef = ref(storage, `pdfs/emission-estimate-${Date.now()}.pdf`);
             const snapshot = await uploadBytes(storageRef, pdfBlob);
-
-            // Step 2: Get the download URL of the uploaded PDF
             const downloadURL = await getDownloadURL(snapshot.ref);
 
-            // Step 3: Store PDF metadata or URL in Firestore
             await addDoc(collection(firestore, "users", user.uid, "pdfs"), {
                 url: downloadURL,
                 createdAt: new Date(),
@@ -159,12 +133,11 @@ export const FirebaseProvider = (props) => {
             console.log('PDF uploaded and metadata saved successfully');
             return downloadURL;
         } catch (error) {
-            console.error("Error uploading PDF to Firebase:", error);
+            setError(error.message);
             throw new Error('Failed to upload PDF to Firebase');
         }
     };
 
-    // Function to fetch all PDFs for the logged-in user
     const fetchUserPDFs = async () => {
         try {
             if (!user) throw new Error("No user is logged in");
@@ -175,7 +148,7 @@ export const FirebaseProvider = (props) => {
 
             return pdfList;
         } catch (error) {
-            console.error("Error fetching PDFs: ", error);
+            setError(error.message);
             throw new Error("Failed to fetch PDFs");
         }
     };
@@ -184,6 +157,7 @@ export const FirebaseProvider = (props) => {
         <FirebaseContext.Provider value={{
             user,
             isLoggedIn,
+            error,
             addUser,
             signinUserWithEmailAndPassword,
             signinWithGoogle,
@@ -193,6 +167,7 @@ export const FirebaseProvider = (props) => {
             fetchUserPDFs
         }}>
             {props.children}
+            {error && <div className="error">{error}</div>} {/* Display error message */}
         </FirebaseContext.Provider>
     );
 };

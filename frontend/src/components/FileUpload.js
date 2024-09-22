@@ -1,49 +1,43 @@
-import React, { useState } from "react";
-import axios from "axios";
+import React, { useState } from 'react';
+import { useFirebase } from '../context/Firebase'; // Adjust the path as needed
 
-function FileUpload() {
-  const [file, setFile] = useState(null);
-  const [extractedText, setExtractedText] = useState("");
-  const [summary, setSummary] = useState("");
+const FileUpload = () => {
+    const [file, setFile] = useState(null);
+    const [uploading, setUploading] = useState(false);
+    const [url, setUrl] = useState('');
+    const { uploadPDFToFirebase } = useFirebase(); // Get the upload function from context
 
-  const handleFileChange = (event) => {
-    setFile(event.target.files[0]);
-  };
+    const handleFileChange = (event) => {
+        setFile(event.target.files[0]);
+    };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const formData = new FormData();
-    formData.append("file", file);
+    const handleUpload = async () => {
+        if (!file) return;
 
-    try {
-      // Upload file to backend for OCR processing
-      const res = await axios.post("http://localhost:5000/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      setExtractedText(res.data.text);
+        setUploading(true);
 
-      // Send extracted text for summarization
-      const summaryRes = await axios.post("http://localhost:5000/summarize", { text: res.data.text });
-      setSummary(summaryRes.data.summary);
-    } catch (err) {
-      console.error("Error:", err);
-    }
-  };
+        try {
+            const fileURL = await uploadPDFToFirebase(file); // Use the context method
+            setUrl(fileURL);
+            alert('File uploaded successfully!');
+        } catch (error) {
+            console.error("Error uploading file:", error);
+            alert('Error uploading file');
+        } finally {
+            setUploading(false);
+        }
+    };
 
-  return (
-    <div>
-      <form onSubmit={handleSubmit}>
-        <input type="file" onChange={handleFileChange} />
-        <button type="submit">Upload</button>
-      </form>
-
-      <h2>Extracted Text:</h2>
-      <p>{extractedText}</p>
-
-      <h2>Summary:</h2>
-      <p>{summary}</p>
-    </div>
-  );
-}
+    return (
+        <div>
+            <h2>Upload </h2>
+            <input type="file" accept=".pdf,.doc,.docx" onChange={handleFileChange} />
+            <button onClick={handleUpload} disabled={uploading}>
+                {uploading ? 'Uploading...' : 'Upload Resume'}
+            </button>
+            {url && <p>File URL: <a href={url} target="_blank" rel="noopener noreferrer">{url}</a></p>}
+        </div>
+    );
+};
 
 export default FileUpload;
