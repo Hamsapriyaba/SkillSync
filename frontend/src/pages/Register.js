@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 
 const Register = () => {
   const [registerData, setRegisterData] = useState({
-    CoalName: '',
+    name: '',
     email: '',
     password: '',
   });
@@ -26,7 +26,7 @@ const Register = () => {
     e.preventDefault();
 
     // Simple validation
-    if (!registerData.CoalName || !registerData.email || !registerData.password) {
+    if (!registerData.name || !registerData.email || !registerData.password) {
       setMessage("All fields are required.");
       return;
     }
@@ -45,11 +45,10 @@ const Register = () => {
     }
 
     try {
-      const result = await firebase.addUser(registerData.CoalName, registerData.email, registerData.password);
-      console.log("Successful", result);
+      const result = await firebase.addUser(registerData.name, registerData.email, registerData.password);
+      console.log("Registration successful", result);
       navigate("/");
     } catch (error) {
-      // Handle specific registration errors from Firebase
       let errorMessage = 'Registration failed.';
 
       switch (error.code) {
@@ -80,9 +79,9 @@ const Register = () => {
             <label className="block text-gray-700 mb-2">Name:</label>
             <input
               type="text"
-              name="Name"
+              name="name"
               placeholder="Enter Your Name"
-              value={registerData.CoalName}
+              value={registerData.name}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 bg-white text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00F020]"
               required
