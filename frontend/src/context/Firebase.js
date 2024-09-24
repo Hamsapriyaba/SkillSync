@@ -38,7 +38,8 @@ export const useFirebase = () => {
     if (!firebase) {
         throw new Error("useFirebase must be used within a FirebaseProvider");
     }
-}
+    return firebase; // Added return statement
+};
 
 export const FirebaseProvider = (props) => {
     const [user, setUser] = useState(null);
@@ -48,7 +49,7 @@ export const FirebaseProvider = (props) => {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(firebaseAuth, user => {
+        const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
             if (user) {
                 setUser(user);
                 setIsLoggedIn(true);
@@ -63,13 +64,14 @@ export const FirebaseProvider = (props) => {
         return () => unsubscribe();
     }, []);
 
-    const addUser = async (CoalName, email, password) => {
+    // Updated 'addUser' function to use 'name' instead of 'CoalName'
+    const addUser = async (name, email, password) => {
         try {
             const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
             const loggedInUser = userCredential.user;
 
             const userDoc = {
-                CoalName,
+                name, // Changed from 'CoalName' to 'name'
                 email,
                 userId: loggedInUser.uid,
             };
@@ -80,6 +82,7 @@ export const FirebaseProvider = (props) => {
         } catch (error) {
             setError(error.message);
             console.error('Error creating user or setting authentication:', error);
+            throw error; // Rethrow the error so it can be caught in the component
         }
     };
 
@@ -120,7 +123,7 @@ export const FirebaseProvider = (props) => {
 
     const uploadPDFToFirebase = async (pdfBlob) => {
         try {
-            const storageRef = ref(storage, `pdfs/emission-estimate-${Date.now()}.pdf`);
+            const storageRef = ref(storage, `pdfs/resume-${Date.now()}-${pdfBlob.name}`);
             const snapshot = await uploadBytes(storageRef, pdfBlob);
             const downloadURL = await getDownloadURL(snapshot.ref);
 
@@ -134,6 +137,7 @@ export const FirebaseProvider = (props) => {
             return downloadURL;
         } catch (error) {
             setError(error.message);
+            console.error("Error uploading PDF to Firebase:", error);
             throw new Error('Failed to upload PDF to Firebase');
         }
     };
@@ -149,6 +153,7 @@ export const FirebaseProvider = (props) => {
             return pdfList;
         } catch (error) {
             setError(error.message);
+            console.error("Error fetching PDFs: ", error);
             throw new Error("Failed to fetch PDFs");
         }
     };
